@@ -35,6 +35,7 @@ CRITICAL RULES:
 4. Use null for missing values
 5. Use [] for missing lists
 6. Follow the schema EXACTLY
+7. For social_links: Extract the COMPLETE URL (e.g., "https://linkedin.com/in/username"), NOT just the platform name. If only a username is present, construct the full URL. If no link exists, use null.
 
 JSON SCHEMA:
 {{
@@ -44,9 +45,9 @@ JSON SCHEMA:
     "phone": null,
     "location": null,
     "social_links": {{
-      "linkedin": null,
-      "github": null,
-      "portfolio": null
+      "linkedin": "https://linkedin.com/in/username or null",
+      "github": "https://github.com/username or null",
+      "portfolio": "https://example.com or null"
     }}
   }},
   "professional_summary": null,
