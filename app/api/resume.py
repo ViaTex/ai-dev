@@ -3,29 +3,38 @@ API endpoints for resume parsing.
 """
 
 from fastapi import APIRouter, UploadFile, File, HTTPException
+from pydantic import ValidationError
 
-from app.schemas.resume_schema import ParsedResumeResponse
+from app.schemas.resume_schema import ParsedResumeResponse, ResumeData
 from app.utils.file_parser import parse_resume_file
 from app.services.groq_client import groq_client
 
 router = APIRouter(prefix="/api", tags=["resume"])
 
-def parse_resume_manager(file_path: str) -> str:
-    """
-    Reads the PARSING_METHOD from the environment and routes to the correct parser.
-    """
-    parsing_method = os.getenv("PARSING_METHOD", "cloud") # Default to "local"
 
-    if parsing_method == "cloud":
-        print("[LOG] Using CLOUD parsing method.")
-        # with open(file_path, "rb") as f:
-        #     return cloud_resume_parser(file_content=f.read())
-        # This part is commented out as an example of where your cloud logic would go.
-        raise NotImplementedError("Cloud parser not fully implemented in this example.")
+def _transform_parsed_data(data: dict) -> dict:
+    """
+    Corrects the structure and types of parsed resume data to match Pydantic models.
+    """
+    # Fix social links: Replace non-URL placeholders with None
+    social_links = data.get("personal_information", {}).get("social_links")
+    if social_links:
+        for key, value in social_links.items():
+            if not isinstance(value, str) or not value.startswith(('http://', 'https://')):
+                social_links[key] = None
 
-    else: # Default to local
-        print("[LOG] Using LOCAL parsing method.")
-        return local_resume_parser.route_and_parse(file_path)
+    # Fix awards: Convert list of dicts to list of strings
+    additional_info = data.get("additional_information", {})
+    if additional_info and "awards" in additional_info:
+        awards_list = additional_info.get("awards", [])
+        if awards_list and isinstance(awards_list[0], dict):
+            corrected_awards = [
+                item.get("award_name", "") for item in awards_list if "award_name" in item
+            ]
+            additional_info["awards"] = corrected_awards
+            
+    return data
+
 
 @router.post("/parse-resume", response_model=ParsedResumeResponse)
 async def parse_resume(
@@ -68,14 +77,24 @@ async def parse_resume(
         resume_text = await parse_resume_file(file)
         
         # Step 2: Send to Groq API for parsing
-        parsed_data = await groq_client.parse_resume(resume_text)
+        parsed_data_dict = await groq_client.parse_resume(resume_text)
+
+        # Step 2.5: Transform data to fix validation issues
+        corrected_data_dict = _transform_parsed_data(parsed_data_dict)
         
-        # Step 3: Return structured response
-        return ParsedResumeResponse(
-            success=True,
-            message="Resume parsed successfully",
-            data=parsed_data
-        )
+        # Step 3: Validate and return structured response
+        try:
+            validated_data = ResumeData(**corrected_data_dict)
+            return ParsedResumeResponse(
+                success=True,
+                message="Resume parsed successfully",
+                data=validated_data
+            )
+        except ValidationError as e:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Pydantic validation failed after transformation: {e}"
+            )
     
     except HTTPException:
         # Re-raise HTTP exceptions from parsing functions

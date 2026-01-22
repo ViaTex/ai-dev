@@ -1,0 +1,62 @@
+{
+  "personal_information": {
+    "name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1-123-456-7890",
+    "location": "San Francisco, CA",
+    "social_links": {
+      "linkedin": "https://www.linkedin.com/in/johndoe",
+      "github": "https://github.com/johndoe",
+      "portfolio": "https://johndoe.dev"
+    }
+  },
+  "professional_summary": "A brief summary about the candidate's professional background.",
+  "work_experience": [
+    {
+      "job_title": "Senior Software Engineer",
+      "company": "Tech Corp",
+      "location": "Mountain View, CA",
+      "start_date": "2022-01-01",
+      "end_date": "Present",
+      "responsibilities": [
+        "Developed and maintained web applications.",
+        "Collaborated with cross-functional teams."
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Bachelor of Science in Computer Science",
+      "institution": "University of Example",
+      "location": "City, State",
+      "graduation_year": "2021"
+    }
+  ],
+  "skills": {
+    "programming_languages": ["Python", "JavaScript", "TypeScript"],
+    "frameworks_and_libraries": ["FastAPI", "React", "Node.js"],
+    "databases": ["PostgreSQL", "MongoDB"],
+    "tools_and_technologies": ["Docker", "Git", "CI/CD"]
+  },
+  "projects": [
+    {
+      "project_name": "Resume Parser API",
+      "description": "A FastAPI application to parse and analyze resumes.",
+      "technologies_used": ["Python", "FastAPI", "Pydantic"],
+      "project_url": "https://github.com/johndoe/resume-parser"
+    }
+  ],
+  "additional_information": {
+    "certifications": [
+      "Certified Python Developer"
+    ],
+    "awards": [
+      "1st Place at National Hackathon for project on automated vehicle emissions.",
+      "Top 5 – University Coding Challenge for algorithmic efficiency."
+    ],
+    "languages": [
+      "English (Fluent)",
+      "Spanish (Conversational)"
+    ]
+  }
+}

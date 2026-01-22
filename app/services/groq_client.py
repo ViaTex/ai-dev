@@ -7,8 +7,6 @@ import json
 import httpx
 from fastapi import HTTPException
 
-from app.schemas.resume_schema import ResumeData
-
 
 class GroqClient:
     """Client for interacting with Groq API."""
@@ -98,8 +96,8 @@ RESUME TEXT:
 Return ONLY the JSON object.
 """.strip()
 
-    async def parse_resume(self, resume_text: str) -> ResumeData:
-        """Send resume text to Groq API and return structured data."""
+    async def parse_resume(self, resume_text: str) -> dict:
+        """Send resume text to Groq API and return raw parsed data as a dictionary."""
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -144,7 +142,7 @@ Return ONLY the JSON object.
                 content = content.replace("```json", "").replace("```", "").strip()
 
             parsed_json = json.loads(content)
-            return ResumeData(**parsed_json)
+            return parsed_json  # Return raw dict for transformation in the API layer
 
         except json.JSONDecodeError:
             raise HTTPException(
