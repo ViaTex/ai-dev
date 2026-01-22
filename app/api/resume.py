@@ -10,6 +10,22 @@ from app.services.groq_client import groq_client
 
 router = APIRouter(prefix="/api", tags=["resume"])
 
+def parse_resume_manager(file_path: str) -> str:
+    """
+    Reads the PARSING_METHOD from the environment and routes to the correct parser.
+    """
+    parsing_method = os.getenv("PARSING_METHOD", "cloud") # Default to "local"
+
+    if parsing_method == "cloud":
+        print("[LOG] Using CLOUD parsing method.")
+        # with open(file_path, "rb") as f:
+        #     return cloud_resume_parser(file_content=f.read())
+        # This part is commented out as an example of where your cloud logic would go.
+        raise NotImplementedError("Cloud parser not fully implemented in this example.")
+
+    else: # Default to local
+        print("[LOG] Using LOCAL parsing method.")
+        return local_resume_parser.route_and_parse(file_path)
 
 @router.post("/parse-resume", response_model=ParsedResumeResponse)
 async def parse_resume(
