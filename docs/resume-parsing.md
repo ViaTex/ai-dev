@@ -1,99 +1,254 @@
-# Technical Documentation: LLM-Based Resume Parsing Prototype
+# Resume Parsing API - Technical Feature Documentation
 
-**Author:** AI Assistant
-**Date:** 2026-01-21
-**Status:** Initial Draft
+## 1. Feature Overview
 
-## 1. Overview
+### Feature Name
+Resume Parsing API
 
-This document describes an LLM-based resume parsing prototype designed to extract structured information from PDF and DOCX resumes. The system prioritizes rapid development and flexibility, making it suitable for validating the end-to-end resume processing workflow during early-stage development.
+### Purpose of the Feature
+The Resume Parsing API provides a robust solution for extracting structured data from resumes using a Large Language Model (LLM) integrated with the Groq API. It enables automated parsing of resumes into a predefined JSON schema, making it easier to process and analyze candidate information.
 
-## 2. Rationale for LLM-Based Parsing
+### Problem It Solves
+Manual resume parsing is time-consuming and error-prone. This feature automates the process, ensuring accuracy, scalability, and adherence to a strict schema for downstream processing.
 
-Traditional resume parsing systems rely on complex NLP pipelines that require significant development time and maintenance. For a prototype, an LLM-based approach offers clear advantages:
-
-* **Rapid Development:** Pre-trained LLMs accessed via the Groq API enable advanced parsing without model training.
-* **Format Flexibility:** The system adapts well to diverse resume layouts and writing styles.
-* **Lower Initial Cost:** API usage is more economical than building and maintaining a custom NLP pipeline at the prototyping stage.
-* **Focus on Core Architecture:** Development effort is concentrated on file handling, API design, and data validation rather than NLP internals.
-
-## 3. System Architecture
-
-The system is implemented as a lightweight FastAPI service with a single responsibility: resume parsing.
-
-**Workflow:**
-
-1. A resume file is uploaded to the `/api/parse-resume` endpoint.
-2. Raw text is extracted using a format-specific parser.
-3. The extracted text is sent to the Groq API via a dedicated client.
-4. The LLM returns structured JSON based on a predefined schema.
-5. The response is validated using Pydantic and returned to the client.
-
-## 4. Resume Text Extraction
-
-### 4.1 PDF Parsing (`pdfplumber`)
-
-`pdfplumber` is used for PDF text extraction due to its superior handling of layout and reading order compared to alternatives such as `PyPDF2`.
-
-### 4.2 DOCX Parsing (`python-docx`)
-
-`python-docx` is used to extract text from both paragraphs and tables, ensuring complete coverage of document content.
-
-## 5. Groq API Integration and Prompt Design
-
-### 5.1 Groq Client
-
-The `GroqClient` module manages API communication, including:
-
-* Environment-based configuration
-* Request construction and execution
-* Error handling and response parsing
-
-### 5.2 Schema-Driven Prompting
-
-The system uses a strict, schema-driven prompt strategy to improve reliability:
-
-* The LLM is instructed to return **only valid JSON**
-* A fixed schema defines all fields and data types
-* Missing values are represented as `null` or empty arrays
-* Low temperature (`0.1`) is used to reduce output variance
-
-This approach treats the LLM as a deterministic data extraction engine rather than a generative model.
-
-## 6. Extracted Data Structure
-
-The API returns structured resume data, including:
-
-* **Personal Information:** name, contact details, social links
-* **Professional Summary**
-* **Education**
-* **Work Experience** with achievements
-* **Skills:** technical, tools, soft skills
-* **Projects**
-* **Additional Information:** certifications, languages, awards
-
-All fields follow a consistent JSON schema suitable for validation and downstream processing.
-
-## 7. Limitations and Future Enhancements
-
-### 7.1 Current Limitations
-
-* Dependency on an external API
-* Increased cost at scale
-* Limited control over model behavior
-* Occasional risk of hallucinated data
-* Data privacy considerations for third-party processing
-
-### 7.2 Future Direction
-
-A production-ready system may evolve toward:
-
-* Hybrid LLM + rule-based validation
-* Fine-tuned, self-hosted models
-* Regex-based pre-extraction for structured fields
-* Full NLP pipelines with NER, relation extraction, and classification
-
-This prototype provides a fast and effective foundation while enabling informed planning for a scalable, production-grade solution.
+### Where It Fits in the Overall System
+This feature is part of the backend service, specifically within the `app.api.resume` module. It interacts with the `GroqClient` service for LLM-based parsing and is exposed via RESTful API endpoints.
 
 ---
 
+## 2. High-Level Architecture
+
+### Components Involved
+- **Frontend**: Not directly involved; can consume the API for displaying parsed resume data.
+- **Backend**: FastAPI application handling requests and responses.
+- **Services**: `GroqClient` for interacting with the Groq API.
+- **Third-party APIs**: Groq API for LLM-based resume parsing.
+
+### Data Flow Explanation
+1. A resume file is uploaded via the `/api/parse-resume` endpoint.
+2. The file is processed to extract text.
+3. The extracted text is sent to the Groq API for parsing.
+4. The Groq API returns structured JSON data.
+5. The data is validated, transformed, and returned to the client.
+
+### Async/Background Processing
+The API uses asynchronous processing for handling file uploads and Groq API interactions to ensure non-blocking operations.
+
+---
+
+## 3. API Documentation
+
+### API Name
+Parse Resume
+
+#### HTTP Method
+POST
+
+#### Endpoint URL
+`/api/parse-resume`
+
+#### Authentication / Authorization
+None required.
+
+#### Request Headers
+| Header Name      | Description              | Required |
+|------------------|--------------------------|----------|
+| `Content-Type`   | Must be `multipart/form-data` | Yes      |
+
+#### Request Body
+| Field Name       | Type       | Description                     | Required |
+|------------------|------------|---------------------------------|----------|
+| `file`           | File       | Resume file to be parsed        | Yes      |
+
+#### Example Request (JSON)
+```json
+{
+  "file": "<binary file data>"
+}
+```
+
+#### Response Structure
+| Field Name       | Type       | Description                     |
+|------------------|------------|---------------------------------|
+| `personal_information` | Object | Parsed personal information |
+| `skills`         | Array      | List of extracted skills        |
+| `experience`     | Array      | Work experience details         |
+| `education`      | Array      | Educational qualifications      |
+
+#### Example Success Response
+```json
+{
+  "personal_information": {
+    "full_name": "John Doe",
+    "email": "john.doe@example.com",
+    "phone": "+1234567890",
+    "location": "New York, USA",
+    "social_links": {
+      "linkedin": "https://linkedin.com/in/johndoe",
+      "github": "https://github.com/johndoe",
+      "portfolio": "https://johndoe.com"
+    }
+  },
+  "skills": ["Python", "Machine Learning", "Data Analysis"],
+  "experience": [
+    {
+      "company": "TechCorp",
+      "role": "Software Engineer",
+      "duration": "Jan 2020 - Dec 2022",
+      "description": "Developed scalable backend systems."
+    }
+  ],
+  "education": [
+    {
+      "institution": "University of Technology",
+      "degree": "B.Sc. in Computer Science",
+      "year": "2019"
+    }
+  ]
+}
+```
+
+#### Example Error Responses
+- **Invalid File Format**
+```json
+{
+  "detail": "Unsupported file format. Please upload a valid resume file."
+}
+```
+- **Parsing Error**
+```json
+{
+  "detail": "Failed to parse the resume. Please try again later."
+}
+```
+
+#### HTTP Status Codes Used
+- `200 OK`: Parsing successful.
+- `400 Bad Request`: Invalid input.
+- `500 Internal Server Error`: Unexpected server error.
+
+#### Validation Rules Applied
+- File must be a valid resume format (PDF, DOCX, etc.).
+- Maximum file size enforced.
+
+---
+
+## 4. Database / Data Layer
+
+No database is directly involved in this feature. The parsed data is returned to the client without persistent storage.
+
+---
+
+## 5. Algorithms & Logic Used
+
+### Core Algorithms or Methods
+- **File Parsing**: Extracts text from uploaded files using PyMuPDF.
+- **Prompt Engineering**: Constructs a strict JSON-only prompt for the Groq API.
+- **Data Validation**: Ensures the response adheres to the predefined schema.
+
+### Step-by-Step Explanation
+1. Extract text from the uploaded file.
+2. Construct a JSON-only prompt based on the schema.
+3. Send the prompt to the Groq API.
+4. Validate and transform the response.
+
+### Edge Cases Handled
+- Missing fields in the resume.
+- Invalid or unsupported file formats.
+
+---
+
+## 6. Business Logic & Rules
+
+### Important Conditions
+- Only valid resume files are accepted.
+- The response must strictly adhere to the schema.
+
+### Feature-Specific Rules
+- Null values are used for missing fields.
+- Empty arrays are used for missing lists.
+
+---
+
+## 7. Error Handling & Edge Cases
+
+### Possible Failure Scenarios
+- Invalid file format.
+- Groq API errors.
+- Network issues.
+
+### How Errors Are Handled
+- User-facing errors return descriptive messages.
+- Internal errors are logged for debugging.
+
+---
+
+## 8. Security Considerations
+
+### Input Validation
+- File type and size are validated.
+
+### Sensitive Data Handling
+- No sensitive data is stored.
+
+---
+
+## 9. Performance Considerations
+
+### Optimizations Used
+- Asynchronous processing for non-blocking operations.
+
+### Bottlenecks Avoided
+- Large file uploads are handled efficiently.
+
+---
+
+## 10. Dependencies
+
+### Internal Modules
+- `app.services.groq_client`
+- `app.utils.file_parser`
+
+### External Libraries
+- `fastapi`
+- `httpx`
+- `PyMuPDF`
+
+### Third-Party APIs
+- Groq API
+
+---
+
+## 11. Configuration & Environment Variables
+
+### Required Env Variables
+- `GROQ_API_KEY`: API key for Groq API.
+- `MODEL_NAME`: Default model name (optional).
+
+### Default Values
+- `MODEL_NAME`: `llama-3.1-8b-instant`
+
+---
+
+## 12. Testing Notes
+
+### Test Cases Covered
+- Valid resume file parsing.
+- Invalid file format handling.
+- Groq API error handling.
+
+### Mocking or Stubbing Used
+- Mocked Groq API responses for unit tests.
+
+---
+
+## 13. Future Improvements
+
+### Known Limitations
+- No persistent storage for parsed data.
+
+### Scalability Improvements
+- Add caching for frequently parsed resumes.
+
+### Refactoring Opportunities
+- Modularize the prompt engineering logic.
