@@ -7,7 +7,7 @@ from pydantic import ValidationError
 
 from app.schemas.resume_schema import ParsedResumeResponse, ResumeData
 from app.utils.file_parser import parse_resume_file
-from app.services.groq_client import groq_client
+from app.services.groq_client import get_groq_client
 
 router = APIRouter(prefix="/api", tags=["resume"])
 
@@ -77,7 +77,7 @@ async def parse_resume(
         resume_text = await parse_resume_file(file)
         
         # Step 2: Send to Groq API for parsing
-        parsed_data_dict = await groq_client.parse_resume(resume_text)
+        parsed_data_dict = await get_groq_client().parse_resume(resume_text)
 
         # Step 2.5: Transform data to fix validation issues
         corrected_data_dict = _transform_parsed_data(parsed_data_dict)

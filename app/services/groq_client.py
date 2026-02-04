@@ -16,7 +16,7 @@ class GroqClient:
         self.model_name = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
 
-        if not self.api_key:
+        if not self.api_key:            
             raise RuntimeError(
                 "GROQ_API_KEY not found. "
                 "Ensure .env is loaded and the server was restarted."
@@ -158,5 +158,13 @@ Return ONLY the JSON object.
             )
 
 
-# Singleton instance
-groq_client = GroqClient()
+# Global variable to hold the client instance
+_groq_client_instance = None
+
+
+def get_groq_client() -> GroqClient:
+    """Get or create the Groq client instance (lazy initialization)."""
+    global _groq_client_instance
+    if _groq_client_instance is None:
+        _groq_client_instance = GroqClient()
+    return _groq_client_instance
