@@ -1,5 +1,6 @@
 """
 Groq API client for LLM-based resume parsing.
+Merged prompt: high-fidelity, ATS-safe, non-hallucinating resume extraction.
 """
 
 import os
@@ -16,28 +17,82 @@ class GroqClient:
         self.model_name = os.getenv("MODEL_NAME", "llama-3.1-8b-instant")
         self.api_url = "https://api.groq.com/openai/v1/chat/completions"
 
-        if not self.api_key:            
+        if not self.api_key:
             raise RuntimeError(
                 "GROQ_API_KEY not found. "
                 "Ensure .env is loaded and the server was restarted."
             )
 
     def _build_parsing_prompt(self, resume_text: str) -> str:
-        """Build a strict JSON-only resume parsing prompt."""
+        """
+        Build a strict, high-fidelity JSON-only resume parsing prompt.
+        Combines structural rigor + semantic richness without hallucination.
+        """
 
         return f"""
-You are an expert resume parsing engine.
+You are a Senior Recruitment Data Architect and an Expert Resume Parsing Engine.
 
-CRITICAL RULES:
+Your task is to transform unstructured resume text into a structured, high-fidelity JSON object
+for use in ATS systems, talent intelligence platforms, and professional profile builders.
+
+========================
+CRITICAL OUTPUT RULES
+========================
 1. Output ONLY valid JSON
-2. Do NOT include explanations or markdown
-3. Do NOT hallucinate information
-4. Use null for missing values
+2. Do NOT include explanations, markdown, or comments
+3. Do NOT hallucinate or infer information not explicitly stated
+4. Use null for missing string values
 5. Use [] for missing lists
-6. Follow the schema EXACTLY
-7. For social_links: Extract the COMPLETE URL (e.g., "https://linkedin.com/in/username"), NOT just the platform name. If only a username is present, construct the full URL. If no link exists, use null.
+6. Follow the JSON schema EXACTLY
+7. Preserve all meaningful technical detail — do NOT over-summarize
+8. Never fabricate skills, metrics, dates, or achievements
 
-JSON SCHEMA:
+========================
+EXTRACTION & NORMALIZATION LOGIC
+========================
+
+DATE HANDLING:
+- Preserve dates exactly as stated in the resume
+- Convert to readable format when possible (e.g., "Sep 2025")
+- Use "Present" ONLY if the resume explicitly indicates an ongoing role or degree
+- Do NOT assume ongoing status
+
+EDUCATION:
+- Preserve full institution names, INCLUDING location if present
+- Do not shorten institution names
+- Do not infer GPA if not stated
+
+WORK EXPERIENCE:
+- Extract only professional roles (internships, jobs, contracts)
+- description:
+  - 1–2 line high-level responsibility summary (no links, no labels like "(Video)")
+- achievements:
+  - Bullet-level, concrete accomplishments
+  - Include metrics, systems, models, optimizations, or outcomes when explicitly stated
+
+PROJECTS:
+- Include academic, personal, hackathon, or research projects
+- Preserve multi-paragraph technical depth if present
+- Do NOT truncate models, pipelines, algorithms, or system design details
+
+SKILL TAXONOMY (STRICT):
+- technical_skills:
+  - Core concepts (e.g., Data Structures, Object-Oriented Programming, Machine Learning, SEO)
+- tools_and_technologies:
+  - Languages, frameworks, platforms, databases, libraries
+- soft_skills:
+  - Behavioral or leadership traits ONLY if explicitly stated
+
+SOCIAL LINKS:
+- Extract COMPLETE URLs when present
+- If only a username is present, construct full URLs:
+  - LinkedIn: https://linkedin.com/in/{{username}}
+  - GitHub: https://github.com/{{username}}
+- If not present, use null
+
+========================
+JSON SCHEMA (MUST MATCH EXACTLY)
+========================
 {{
   "personal_information": {{
     "full_name": null,
@@ -45,9 +100,9 @@ JSON SCHEMA:
     "phone": null,
     "location": null,
     "social_links": {{
-      "linkedin": "https://linkedin.com/in/username or null",
-      "github": "https://github.com/username or null",
-      "portfolio": "https://example.com or null"
+      "linkedin": null,
+      "github": null,
+      "portfolio": null
     }}
   }},
   "professional_summary": null,
@@ -89,16 +144,16 @@ JSON SCHEMA:
   }}
 }}
 
-RESUME TEXT:
-----------------
+========================
+RESUME TEXT
+========================
 {resume_text}
-----------------
 
 Return ONLY the JSON object.
 """.strip()
 
     async def parse_resume(self, resume_text: str) -> dict:
-        """Send resume text to Groq API and return raw parsed data as a dictionary."""
+        """Send resume text to Groq API and return parsed JSON as a dictionary."""
 
         headers = {
             "Authorization": f"Bearer {self.api_key}",
@@ -118,7 +173,7 @@ Return ONLY the JSON object.
                 },
             ],
             "temperature": 0.1,
-            "max_tokens": 2000,
+            "max_tokens": 2200,
         }
 
         try:
@@ -138,12 +193,12 @@ Return ONLY the JSON object.
             result = response.json()
             content = result["choices"][0]["message"]["content"].strip()
 
-            # Safety: remove markdown if model adds it
+            # Safety cleanup if model adds code fences
             if content.startswith("```"):
                 content = content.replace("```json", "").replace("```", "").strip()
 
             parsed_json = json.loads(content)
-            return parsed_json  # Return raw dict for transformation in the API layer
+            return parsed_json
 
         except json.JSONDecodeError:
             raise HTTPException(
@@ -158,7 +213,7 @@ Return ONLY the JSON object.
             )
 
 
-# Global variable to hold the client instance
+# Singleton instance
 _groq_client_instance = None
 
 
