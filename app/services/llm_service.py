@@ -22,6 +22,13 @@ Follow these rules strictly:
 - Use null for missing scalar fields and empty arrays for list fields.
 - Keep keys exactly as specified below.
 - Arrays must contain strings only (not objects), except for education, work_experience, and projects which have specified object structures.
+- For linkedin, github, and website fields: ALWAYS use the actual URLs from the hyperlinks data when available, NOT the display text.
+- Ensure all URLs start with http:// or https://. If a URL is missing the protocol, add https:// prefix.
+- Match hyperlinks intelligently:
+  * URLs containing "linkedin.com" should be mapped to the "linkedin" field
+  * URLs containing "github.com" should be mapped to the "github" field
+  * Other URLs should be mapped to the "website" field (prefer portfolio/personal sites)
+  * Project links should be mapped to the "link" field within projects array
 
 Output JSON structure:
 {{
@@ -117,6 +124,41 @@ DEFAULT_TEMPLATE: Dict[str, Any] = {
 logger = get_logger(__name__)
 
 
+def _normalize_url(url: str | None) -> str | None:
+    """Normalize URL to ensure it has a proper protocol."""
+    if not url or not isinstance(url, str):
+        return None
+    
+    url = url.strip()
+    if not url:
+        return None
+    
+    # If URL already has a protocol, return as-is
+    if url.startswith(('http://', 'https://', 'ftp://')):
+        return url
+    
+    # Add https:// prefix
+    return f"https://{url}"
+
+
+def _normalize_urls_in_data(data: Dict[str, Any]) -> Dict[str, Any]:
+    """Normalize all URLs in the parsed resume data."""
+    
+    # Normalize personal information URLs
+    if "personal_information" in data and isinstance(data["personal_information"], dict):
+        for key in ["linkedin", "github", "website"]:
+            if key in data["personal_information"]:
+                data["personal_information"][key] = _normalize_url(data["personal_information"][key])
+    
+    # Normalize project links
+    if "projects" in data and isinstance(data["projects"], list):
+        for project in data["projects"]:
+            if isinstance(project, dict) and "link" in project:
+                project["link"] = _normalize_url(project["link"])
+    
+    return data
+
+
 def _merge_defaults(payload: Dict[str, Any]) -> Dict[str, Any]:
     merged = deepcopy(DEFAULT_TEMPLATE)
 
@@ -206,24 +248,32 @@ def _coerce_to_text(content: Any) -> str:
     return str(content)
 
 
-async def parse_resume_with_llm(resume_text: str) -> ResumeSchema:
+async def parse_resume_with_llm(resume_text: str, hyperlinks: list[dict[str, str]] | None = None) -> ResumeSchema:
     settings = get_settings()
     llm = ChatGroq(api_key=settings.groq_api_key, model="llama-3.1-8b-instant", temperature=0)
+    
+    # Format hyperlinks for the prompt
+    hyperlinks_text = ""
+    if hyperlinks:
+        hyperlinks_text = "\n\nExtracted Hyperlinks (use these actual URLs, not the display text):\n"
+        for i, link in enumerate(hyperlinks, 1):
+            hyperlinks_text += f"{i}. Text: '{link.get('text', '')}' → URL: {link.get('url', '')}\n"
+    
     prompt = ChatPromptTemplate.from_messages([
         ("system", SYSTEM_PROMPT),
-        ("human", "Resume text:\n{resume_text}"),
+        ("human", "Resume text:\n{resume_text}{hyperlinks_text}"),
     ])
 
     logger.info(
         "llm.parse_start",
-        extra={"resume_length": len(resume_text)},
+        extra={"resume_length": len(resume_text), "hyperlinks_count": len(hyperlinks) if hyperlinks else 0},
     )
 
     # Try raw JSON parsing as primary method (more reliable with Groq)
     raw: Any = None
     try:
         chain = prompt | llm
-        raw = await chain.ainvoke({"resume_text": resume_text})
+        raw = await chain.ainvoke({"resume_text": resume_text, "hyperlinks_text": hyperlinks_text})
         logger.info(
             "llm.raw_response_received",
             extra={"raw_type": type(raw).__name__},
@@ -258,6 +308,7 @@ async def parse_resume_with_llm(resume_text: str) -> ResumeSchema:
         parsed_data = json.loads(json_str)
         merged = _merge_defaults(parsed_data)
         normalized = _normalize_string_arrays(merged)
+        normalized = _normalize_urls_in_data(normalized)
         result = ResumeSchema.model_validate(normalized)
         logger.info("llm.parse_success")
         return result

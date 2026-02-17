@@ -6,7 +6,7 @@ from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.schemas.resume_schema import ResumeSchema
 from app.services.llm_service import parse_resume_with_llm
-from app.utils.file_handler import extract_text, read_upload_file
+from app.utils.file_handler import extract_text_with_links, read_upload_file
 from app.utils.hashing import sha256_bytes
 from app.utils.validators import ParsingError, validate_file_type
 
@@ -31,13 +31,13 @@ async def parse_resume(user_id: str, upload_file: UploadFile) -> ResumeSchema:
         extra={"user_id": user_id, "file_size": len(file_bytes), "file_hash": _file_hash},
     )
 
-    resume_text = await extract_text(file_bytes, file_extension)
+    resume_text, hyperlinks = await extract_text_with_links(file_bytes, file_extension)
     if not resume_text.strip():
         raise ParsingError("No text extracted from resume")
 
     logger.info(
         "resume.text_extracted",
-        extra={"user_id": user_id, "text_length": len(resume_text)},
+        extra={"user_id": user_id, "text_length": len(resume_text), "hyperlinks_count": len(hyperlinks)},
     )
 
-    return await parse_resume_with_llm(resume_text)
+    return await parse_resume_with_llm(resume_text, hyperlinks)
