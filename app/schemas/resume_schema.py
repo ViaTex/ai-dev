@@ -1,80 +1,80 @@
-"""
-Pydantic schemas for the detailed, structured resume data.
-"""
+from __future__ import annotations
 
 from typing import List, Optional
-from pydantic import BaseModel, EmailStr, HttpUrl
 
-
-class SocialLinks(BaseModel):
-    """Social media links."""
-    linkedin: Optional[HttpUrl] = None
-    github: Optional[HttpUrl] = None
-    portfolio: Optional[HttpUrl] = None
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class PersonalInformation(BaseModel):
-    """Personal details of the candidate."""
+    model_config = ConfigDict(extra="forbid")
+
     full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
-    social_links: Optional[SocialLinks] = None
+    linkedin: Optional[str] = None
+    github: Optional[str] = None
+    website: Optional[str] = None
 
 
-class Education(BaseModel):
-    """Education history item."""
-    degree: Optional[str] = None
+class EducationItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     institution: Optional[str] = None
+    degree: Optional[str] = None
+    field_of_study: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
-    gpa: Optional[float] = None
+    gpa: Optional[str] = None
 
 
-class WorkExperience(BaseModel):
-    """Work experience item."""
+class WorkExperienceItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
     company: Optional[str] = None
-    job_title: Optional[str] = None
+    title: Optional[str] = None
     start_date: Optional[str] = None
     end_date: Optional[str] = None
+    responsibilities: List[str] = Field(default_factory=list)
+    technologies: List[str] = Field(default_factory=list)
+
+
+class SkillSet(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    languages: List[str] = Field(default_factory=list)
+    frameworks: List[str] = Field(default_factory=list)
+    tools: List[str] = Field(default_factory=list)
+    databases: List[str] = Field(default_factory=list)
+    certifications: List[str] = Field(default_factory=list)
+
+
+class ProjectItem(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    name: Optional[str] = None
     description: Optional[str] = None
-    achievements: List[str] = []
-
-
-class Skills(BaseModel):
-    """Categorized skills."""
-    technical_skills: List[str] = []
-    tools_and_technologies: List[str] = []
-    soft_skills: List[str] = []
-
-
-class Project(BaseModel):
-    """Project item."""
-    project_name: Optional[str] = None
-    description: Optional[str] = None
-    technologies_used: List[str] = []
+    technologies: List[str] = Field(default_factory=list)
+    link: Optional[str] = None
 
 
 class AdditionalInformation(BaseModel):
-    """Additional resume sections."""
-    certifications: List[str] = []
-    languages: List[str] = []
-    awards: List[str] = []
+    model_config = ConfigDict(extra="forbid")
+
+    certifications: List[str] = Field(default_factory=list)
+    languages: List[str] = Field(default_factory=list)
+    awards: List[str] = Field(default_factory=list)
+    publications: List[str] = Field(default_factory=list)
+    interests: List[str] = Field(default_factory=list)
 
 
-class ResumeData(BaseModel):
-    """Root model for the entire structured resume."""
-    personal_information: Optional[PersonalInformation] = None
+class ResumeSchema(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    personal_information: PersonalInformation = Field(default_factory=PersonalInformation)
     professional_summary: Optional[str] = None
-    education: List[Education] = []
-    work_experience: List[WorkExperience] = []
-    skills: Optional[Skills] = None
-    projects: List[Project] = []
-    additional_information: Optional[AdditionalInformation] = None
-
-
-class ParsedResumeResponse(BaseModel):
-    """API response for parsed resume."""
-    success: bool
-    message: str
-    data: Optional[ResumeData] = None
+    education: List[EducationItem] = Field(default_factory=list)
+    work_experience: List[WorkExperienceItem] = Field(default_factory=list)
+    skills: SkillSet = Field(default_factory=SkillSet)
+    projects: List[ProjectItem] = Field(default_factory=list)
+    additional_information: AdditionalInformation = Field(default_factory=AdditionalInformation)

@@ -1,4 +1,9 @@
-/venv
 .env
-/notebooks
-/data
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+.env.local
+.env.*
+.DS_Store
